@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Http\Controllers\Cabinet;
+
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\ApiService;
+use App\Models\Sites;
+
+class StatisticController extends Controller
+{
+    public function index(Sites $site, ApiService $apiService, Request $request)
+    {
+        $start_year = explode('-', \Auth::user()->created_at)[0];
+        $start_date = explode('-', explode(' ', \Auth::user()->created_at)[0]);
+        $start_date = $start_date[2].'.'.$start_date[1].'.'.$start_date[0];
+
+        $statistic = $apiService->overall_stats($site->id ? $site->id : false);
+        if($statistic['error']) {
+            \Log::error($statistic);
+            abort(400);
+        }
+        //$statistic['result']
+
+        //dd($statistic);
+
+        //$chart = ['downloads' => 0, 'open' => 0, 'downloads_unique' => 0, 'open_unique' => 0, 'income' => 0];
+        $chart_data = isset($statistic['result'][0]) ? $statistic['result'] : [0 => $statistic['result']];
+        /*foreach ($chart_data as $data){
+            $chart['downloads'] += $data['cnt_lg'];
+            $chart['open'] += $data['cnt_lo'];
+            $chart['downloads_unique'] += $data['cnt_lg_u'];
+            $chart['open_unique'] += $data['cnt_lo_u'];
+            $chart['income'] += $data['income'];
+        }*/
+        //dump($chart);
+
+        $chart_data = collect($chart_data);
+        if($request->sort){
+            $sort = explode('-', $request->sort);
+            if(count($sort)==2){
+                if($sort[1]=='desc') $chart_data = $chart_data->sortByDesc($sort[0]);
+                else $chart_data = $chart_data->sortBy($sort[0]);
+            }
+        }
+        //dd($chart_data);
+        return view('statistic', [
+            'chart' => $chart_data,
+            'site' => $site,
+            'start_year' => $start_year,
+            'start_date' => $start_date,
+            'mySites' => collect(Sites::allMySites())
+        ]);
+    }
+}
